@@ -37,28 +37,68 @@ async function run() {
     const usersCollection = db.collection("users");
     const tutorsCollection = db.collection("tutors");
     const bookingsCollection = db.collection("bookings");
+    // get all users from db
+    app.get("/users", async (req, res) => {
+      const result = (await usersCollection.countDocuments()).toString();
+      res.send(result);
+    });
     // save per user to db
     app.post("/user", async (req, res) => {
       const user = req.body;
+      console.log(user);
       const exists = await usersCollection.findOne({ email: user.email });
       if (exists) return;
       await usersCollection.insertOne(req.body);
     });
+    // update saved user immediatly
+    app.patch("/user", async (req, res) => {
+      const user = req.body;
+      const result = await usersCollection.updateOne(
+        { email: user.email },
+        { $set: { name: user.name } }
+      );
+      console.log(result);
+      res.send(result);
+    });
     // get all tutors
     app.get("/tutors", async (req, res) => {
       const category = req.query.category;
-
+      const count = req.query.count;
+      const reviews = req.query.reviews;
+      const search = req.query.search;
+      console.log("search", search);
+      console.log("category", category);
       let query = {};
       if (category) {
         query.category = category;
       } else {
         query = {};
       }
-
+      if (search) {
+        const result = await tutorsCollection
+          .find({ category: { $regex: search } })
+          .toArray();
+        console.log(result, query, search);
+        return res.send(result);
+      }
+      if (count) {
+        const counts = (await tutorsCollection.countDocuments()).toString();
+        return res.send(counts);
+      }
+      if (reviews) {
+        const r = await tutorsCollection
+          .aggregate([
+            {
+              $group: { _id: "", review: { $sum: "$review" } },
+            },
+          ])
+          .toArray();
+        return res.send(r);
+      }
       const result = await tutorsCollection.find(query).toArray();
-
       res.send(result);
     });
+    // get all tutors count
     // get all categories
     app.get("/tutors/categories", async (req, res) => {
       const result = await tutorsCollection
@@ -104,9 +144,6 @@ async function run() {
         { tutorId: id },
         { $inc: { review: 1 } }
       );
-      console.log(id);
-      console.log(result);
-      console.log(result2);
       res.send(result);
     });
     // get my tutorials
@@ -115,7 +152,13 @@ async function run() {
       const result = await tutorsCollection.find({ email }).toArray();
       res.send(result);
     });
-
+    // delete my tutorial
+    app.delete("/tutors/:id", async (req, res) => {
+      const result = await tutorsCollection.deleteOne({
+        _id: new ObjectId(req.params.id),
+      });
+      res.send(result);
+    });
     // get all booking data
     app.get("/bookings", async (req, res) => {
       const email = req.query.email;
