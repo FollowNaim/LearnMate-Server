@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
 // verify token and access with middlewear
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
-  if (!token) return res.status("401").send("Unauthorized Access");
+  if (!token) return res.status(401).send("Unauthorized Access");
   jwt.verify(token, secret, (err, decoded) => {
     if (err) {
       res.status(401).send("unauthorized");
@@ -64,7 +64,7 @@ async function run() {
     // save per user to db
     app.post("/user", async (req, res) => {
       const user = req.body;
-      console.log(user);
+
       const exists = await usersCollection.findOne({ email: user.email });
       if (exists) return;
       await usersCollection.insertOne(req.body);
@@ -98,8 +98,7 @@ async function run() {
       const count = req.query.count;
       const reviews = req.query.reviews;
       const search = req.query.search;
-      console.log("search", search);
-      console.log("category", category);
+
       let query = {};
       if (category) {
         query.category = category;
@@ -110,7 +109,7 @@ async function run() {
         const result = await tutorsCollection
           .find({ category: { $regex: search } })
           .toArray();
-        console.log(result, query, search);
+
         return res.send(result);
       }
       if (count) {
@@ -141,7 +140,9 @@ async function run() {
     // get signle tutorial
     app.get("/tutors/:id", async (req, res) => {
       const id = new ObjectId(req.params.id);
+      console.log(id);
       const result = await tutorsCollection.findOne({ _id: id });
+      console.log(result);
       res.send(result);
     });
     // save per tutorial on db
@@ -154,6 +155,7 @@ async function run() {
     app.put("/tutors/:id", async (req, res) => {
       const id = req.params.id;
       const details = req.body;
+
       const result = await tutorsCollection.updateOne(
         {
           _id: new ObjectId(id),
@@ -206,14 +208,17 @@ async function run() {
       res.send(result);
     });
     // get my tutorials
-    app.get("/my-tutorials/:email", async (req, res) => {
+    app.get("/my-tutorials/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
+      console.log(email);
+      const decoded = req.decoded;
+      if (decoded.email !== email)
+        return res.status(403).send("forbidden access");
       const result = await tutorsCollection.find({ email }).toArray();
       res.send(result);
     });
     // delete my tutorial
     app.delete("/tutors/:id", async (req, res) => {
-      console.log(req.params.id);
       const result = await tutorsCollection.deleteOne({
         _id: new ObjectId(req.params.id),
       });
@@ -222,14 +227,20 @@ async function run() {
     // get all booking data
     app.get("/bookings", verifyToken, async (req, res) => {
       const email = req.query.email;
+      const decoded = req.decoded;
+      if (decoded.email !== email)
+        return res.status(403).send("forbidden access");
       let query = {};
       if (email) query.email = email;
       const result = await bookingsCollection.find(query).toArray();
       res.send(result);
     });
     // save booking data
-    app.post("/bookings", async (req, res) => {
+    app.post("/bookings", verifyToken, async (req, res) => {
       const details = req.body;
+      const decoded = req.decoded;
+      if (decoded.email !== details.email)
+        return res.status(403).send("forbidden access");
       const exists = await bookingsCollection.findOne({
         email: details.email,
         tutorId: details.tutorId,
