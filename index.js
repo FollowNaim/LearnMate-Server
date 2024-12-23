@@ -133,6 +133,33 @@ async function run() {
       );
       res.send(result);
     });
+    // get all categories
+    app.get("/categories", async (req, res) => {
+      const aggretionResutl = await tutorsCollection
+        .aggregate([
+          {
+            $group: {
+              _id: "$category",
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $project: {
+              category: "$_id",
+              count: 1,
+              _id: 0,
+            },
+          },
+        ])
+        .toArray();
+
+      const result = aggretionResutl.reduce((acc, item) => {
+        acc[item.category] = item.count;
+        return acc;
+      }, {});
+
+      res.send(result);
+    });
     // update reveiw
     app.patch("/update-review/:id", async (req, res) => {
       const id = req.params.id;
@@ -154,6 +181,7 @@ async function run() {
     });
     // delete my tutorial
     app.delete("/tutors/:id", async (req, res) => {
+      console.log(req.params.id);
       const result = await tutorsCollection.deleteOne({
         _id: new ObjectId(req.params.id),
       });
