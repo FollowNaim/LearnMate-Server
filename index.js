@@ -5,13 +5,17 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 5000;
 const app = express();
+const jwt = require("jsonwebtoken");
+const secret = process.env.JWT_TOKEN_SECRET;
 
 app.use(
   cors({
     origin: ["https://learnmates.vercel.app", "http://localhost:5173"],
+    credentials: true,
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 // mongo url
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.sdg7y.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -29,6 +33,20 @@ app.get("/", (req, res) => {
   res.send("LearnMate server is running successfully!");
 });
 
+// verify token and access with middlewear
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status("401").send("Unauthorized Access");
+  jwt.verify(token, secret, (err, decoded) => {
+    if (err) {
+      res.status(401).send("unauthorized");
+    } else {
+      req.decoded = decoded;
+      next();
+    }
+  });
+};
+
 async function run() {
   try {
     client.connect();
@@ -37,6 +55,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const tutorsCollection = db.collection("tutors");
     const bookingsCollection = db.collection("bookings");
+
     // get all users from db
     app.get("/users", async (req, res) => {
       const result = (await usersCollection.countDocuments()).toString();
@@ -57,9 +76,22 @@ async function run() {
         { email: user.email },
         { $set: { name: user.name } }
       );
-      console.log(result);
+
       res.send(result);
     });
+    // generate jwt for secure data transmission
+    app.post("/jwt", (req, res) => {
+      const data = req.body;
+      const token = jwt.sign(data, secret, { expiresIn: "5h" });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
+
     // get all tutors
     app.get("/tutors", async (req, res) => {
       const category = req.query.category;
@@ -188,7 +220,7 @@ async function run() {
       res.send(result);
     });
     // get all booking data
-    app.get("/bookings", async (req, res) => {
+    app.get("/bookings", verifyToken, async (req, res) => {
       const email = req.query.email;
       let query = {};
       if (email) query.email = email;
