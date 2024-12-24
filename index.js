@@ -92,6 +92,11 @@ async function run() {
         .send({ success: true });
     });
 
+    // delete token when logout
+    app.get("/clearjwt", (req, res) => {
+      res.clearCookie("token").send({ success: true });
+    });
+
     // get all tutors
     app.get("/tutors", async (req, res) => {
       const category = req.query.category;
@@ -107,9 +112,10 @@ async function run() {
       }
       if (search) {
         const result = await tutorsCollection
-          .find({ category: { $regex: search } })
+          .find({ category: { $regex: search, $options: "i" } })
           .toArray();
 
+        console.log(result);
         return res.send(result);
       }
       if (count) {
@@ -197,11 +203,14 @@ async function run() {
     // update reveiw
     app.patch("/update-review/:id", async (req, res) => {
       const id = req.params.id;
+      // update on tutors collection
       const result = await tutorsCollection.updateMany(
         { _id: new ObjectId(id) },
         { $inc: { review: 1 } }
       );
-      const result2 = await bookingsCollection.updateMany(
+
+      // update on bookings collection both on same time
+      await bookingsCollection.updateMany(
         { tutorId: id },
         { $inc: { review: 1 } }
       );
@@ -236,11 +245,8 @@ async function run() {
       res.send(result);
     });
     // save booking data
-    app.post("/bookings", verifyToken, async (req, res) => {
+    app.post("/bookings", async (req, res) => {
       const details = req.body;
-      const decoded = req.decoded;
-      if (decoded.email !== details.email)
-        return res.status(403).send("forbidden access");
       const exists = await bookingsCollection.findOne({
         email: details.email,
         tutorId: details.tutorId,
@@ -250,6 +256,10 @@ async function run() {
       const prev = await tutorsCollection.findOne({
         _id: new ObjectId(details.tutorId),
       });
+      await tutorsCollection.updateMany(
+        { _id: new ObjectId(details.tutorId) },
+        { $inc: { bookings: 1 } }
+      );
       details.review = prev.review;
       const result = await bookingsCollection.insertOne(details);
       res.send(result);
