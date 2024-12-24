@@ -145,9 +145,9 @@ async function run() {
     // get signle tutorial
     app.get("/tutors/:id", async (req, res) => {
       const id = new ObjectId(req.params.id);
-      console.log(id);
+
       const result = await tutorsCollection.findOne({ _id: id });
-      console.log(result);
+
       res.send(result);
     });
     // save per tutorial on db
@@ -218,7 +218,7 @@ async function run() {
     // get my tutorials
     app.get("/my-tutorials/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      console.log(email);
+
       const decoded = req.decoded;
       if (decoded.email !== email)
         return res.status(403).send("forbidden access");
