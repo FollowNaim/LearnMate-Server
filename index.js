@@ -115,7 +115,6 @@ async function run() {
           .find({ category: { $regex: search, $options: "i" } })
           .toArray();
 
-        console.log(result);
         return res.send(result);
       }
       if (count) {
@@ -252,7 +251,7 @@ async function run() {
         tutorId: details.tutorId,
       });
       if (exists)
-        return res.status(409).send("The data already exists in the database.");
+        return res.status(409).send("You have already booked this tutor!");
       const prev = await tutorsCollection.findOne({
         _id: new ObjectId(details.tutorId),
       });
