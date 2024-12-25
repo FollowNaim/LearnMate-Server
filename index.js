@@ -12,6 +12,7 @@ app.use(
   cors({
     origin: ["https://learnmates.vercel.app", "http://localhost:5173"],
     credentials: true,
+    optionalSuccessStatus: 200,
   })
 );
 app.use(express.json());
@@ -49,7 +50,6 @@ const verifyToken = (req, res, next) => {
 
 async function run() {
   try {
-    client.connect();
     console.log("mongodb connected successfully");
     const db = client.db("learnMate");
     const usersCollection = db.collection("users");
@@ -64,10 +64,10 @@ async function run() {
     // save per user to db
     app.post("/user", async (req, res) => {
       const user = req.body;
-
       const exists = await usersCollection.findOne({ email: user.email });
-      if (exists) return;
-      await usersCollection.insertOne(req.body);
+      if (exists) return res.status(409).send("User already in database!");
+      const result = await usersCollection.insertOne(req.body);
+      res.send(result);
     });
     // update saved user immediatly
     app.patch("/user", async (req, res) => {
@@ -82,19 +82,30 @@ async function run() {
     // generate jwt for secure data transmission
     app.post("/jwt", (req, res) => {
       const data = req.body;
+      // signin jwt
       const token = jwt.sign(data, secret, { expiresIn: "5h" });
       res
         .cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          path: "/",
         })
         .send({ success: true });
     });
 
     // delete token when logout
     app.get("/clearjwt", (req, res) => {
-      res.clearCookie("token").send({ success: true });
+      // clearing cookie
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          path: "/",
+        })
+        .set("Cache-Control", "no-store")
+        .send({ success: true });
     });
 
     // get all tutors
@@ -110,6 +121,7 @@ async function run() {
       } else {
         query = {};
       }
+      // search documents based on category
       if (search) {
         const result = await tutorsCollection
           .find({ category: { $regex: search, $options: "i" } })
@@ -117,10 +129,12 @@ async function run() {
 
         return res.send(result);
       }
+      // count all documents in tutors colleciton
       if (count) {
         const counts = (await tutorsCollection.countDocuments()).toString();
         return res.send(counts);
       }
+      // sum all reviews of tutors collection
       if (reviews) {
         const r = await tutorsCollection
           .aggregate([
@@ -134,7 +148,7 @@ async function run() {
       const result = await tutorsCollection.find(query).toArray();
       res.send(result);
     });
-    // get all tutors count
+
     // get all categories
     app.get("/tutors/categories", async (req, res) => {
       const result = await tutorsCollection
@@ -142,12 +156,10 @@ async function run() {
         .toArray();
       res.send(result);
     });
-    // get signle tutorial
+    // get a signle tutorial
     app.get("/tutors/:id", async (req, res) => {
       const id = new ObjectId(req.params.id);
-
       const result = await tutorsCollection.findOne({ _id: id });
-
       res.send(result);
     });
     // save per tutorial on db
@@ -160,7 +172,6 @@ async function run() {
     app.put("/tutors/:id", async (req, res) => {
       const id = req.params.id;
       const details = req.body;
-
       const result = await tutorsCollection.updateOne(
         {
           _id: new ObjectId(id),
@@ -174,6 +185,7 @@ async function run() {
     });
     // get all categories
     app.get("/categories", async (req, res) => {
+      // get all category and their count that how many application it has
       const aggretionResutl = await tutorsCollection
         .aggregate([
           {
@@ -182,6 +194,7 @@ async function run() {
               count: { $sum: 1 },
             },
           },
+          // projection for id and category , id will de exculded and count wil be included and projection will be based on id
           {
             $project: {
               category: "$_id",
@@ -191,24 +204,22 @@ async function run() {
           },
         ])
         .toArray();
-
+      // looping them and making object shorter and sum all occurances and make liki {english:2, bangla:5}
       const result = aggretionResutl.reduce((acc, item) => {
         acc[item.category] = item.count;
         return acc;
       }, {});
-
       res.send(result);
     });
     // update reveiw
     app.patch("/update-review/:id", async (req, res) => {
       const id = req.params.id;
-      // update on tutors collection
+      // update review on tutors collection
       const result = await tutorsCollection.updateMany(
         { _id: new ObjectId(id) },
         { $inc: { review: 1 } }
       );
-
-      // update on bookings collection both on same time
+      // update review on bookings collection.  both on same time
       await bookingsCollection.updateMany(
         { tutorId: id },
         { $inc: { review: 1 } }
@@ -218,8 +229,8 @@ async function run() {
     // get my tutorials
     app.get("/my-tutorials/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-
       const decoded = req.decoded;
+      // verifying for authorized user using jwt
       if (decoded.email !== email)
         return res.status(403).send("forbidden access");
       const result = await tutorsCollection.find({ email }).toArray();
@@ -246,19 +257,23 @@ async function run() {
     // save booking data
     app.post("/bookings", async (req, res) => {
       const details = req.body;
+      // checking if this user booked this seat already or not
       const exists = await bookingsCollection.findOne({
         email: details.email,
         tutorId: details.tutorId,
       });
       if (exists)
         return res.status(409).send("You have already booked this tutor!");
+      // fetching tutors collection tutorial data using the tutor id
       const prev = await tutorsCollection.findOne({
         _id: new ObjectId(details.tutorId),
       });
+      // updating their review count by all. whom has same id and update all review at once
       await tutorsCollection.updateMany(
         { _id: new ObjectId(details.tutorId) },
         { $inc: { bookings: 1 } }
       );
+      // adding review count from tutors collection (from original review count) and manually set to the req.body and insert it to the bookings collection to later work with
       details.review = prev.review;
       const result = await bookingsCollection.insertOne(details);
       res.send(result);
