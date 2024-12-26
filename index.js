@@ -157,19 +157,19 @@ async function run() {
       res.send(result);
     });
     // get a signle tutorial
-    app.get("/tutors/:id", async (req, res) => {
+    app.get("/tutors/:id", verifyToken, async (req, res) => {
       const id = new ObjectId(req.params.id);
       const result = await tutorsCollection.findOne({ _id: id });
       res.send(result);
     });
     // save per tutorial on db
-    app.post("/tutors", async (req, res) => {
+    app.post("/tutors", verifyToken, async (req, res) => {
       const tutor = req.body;
       const result = await tutorsCollection.insertOne(tutor);
       res.send(result);
     });
     // update a tutorial
-    app.put("/tutors/:id", async (req, res) => {
+    app.put("/tutors/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const details = req.body;
       const result = await tutorsCollection.updateOne(
