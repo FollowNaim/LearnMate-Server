@@ -145,6 +145,51 @@ LearnMate aims to bridge the gap between students and tutors by providing an int
 
 ---
 
+## Dependencies
+
+- **cookie-parser**: ^1.4.7 – Middleware for parsing cookies in HTTP requests.
+- **cors**: ^2.8.5 – Package to enable Cross-Origin Resource Sharing (CORS).
+- **dotenv**: ^16.4.7 – Loads environment variables from a `.env` file into `process.env`.
+- **express**: ^4.21.2 – Fast, unopinionated web framework for Node.js.
+- **jsonwebtoken**: ^9.0.2 – JSON Web Token (JWT) for securely transmitting information between parties.
+- **mongodb**: ^6.12.0 – MongoDB driver for Node.js.
+
+---
+
+## 🔧 How to Run
+
+1. **Clone the repository.**
+
+```bash
+   git clone https://github.com/FollowNaim/LearnMate-Server
+   cd LearnMate-Server
+```
+
+2. **Install Dependencies**
+
+```bash
+npm install
+```
+
+3. **Setup Environment Variables**
+
+- create .env in the root directory.
+- Add `JWT_TOKEN_SECRET` variable and put your **jwt secret token**.
+- create a collection on mongodb atlas.
+- Add `DB_USER, DB_PASS` variable and add your database username and password.
+
+4. **Run the application**
+
+```bash
+npm run dev
+```
+
+5. **Access the app**
+
+- Open http://localhost:5000 in your browser.
+
+---
+
 ## Deployment
 
 This server is deployed and accessible via the LearnMate platform. The environment variables are configured securely using `.env` files. For further deployment details, refer to the internal
