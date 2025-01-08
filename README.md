@@ -190,6 +190,12 @@ npm run dev
 
 ---
 
-## Deployment
+## 🛠️ Deployment
 
-This server is deployed and accessible via the LearnMate platform. The environment variables are configured securely using `.env` files. For further deployment details, refer to the internal
+- Hosted on Netlify or Vercel for a fast and reliable experience.
+
+---
+
+## 🤝 Contributions
+
+Contributions are welcome! Fork this repository, make your changes, and submit a pull request.
