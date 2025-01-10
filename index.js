@@ -157,7 +157,7 @@ async function run() {
       res.send(result);
     });
     // get a signle tutorial
-    app.get("/tutors/:id", verifyToken, async (req, res) => {
+    app.get("/tutors/:id", async (req, res) => {
       const id = new ObjectId(req.params.id);
       const result = await tutorsCollection.findOne({ _id: id });
       res.send(result);
