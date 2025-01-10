@@ -183,6 +183,18 @@ async function run() {
       );
       res.send(result);
     });
+
+    // get top tutorials
+    app.get("/top-tutorials", async (req, res) => {
+      const limit = parseInt(req.query?.limit) || 3;
+      const result = await tutorsCollection
+        .find()
+        .sort({ review: -1 })
+        .limit(limit)
+        .toArray();
+      res.send(result);
+    });
+
     // get all categories
     app.get("/categories", async (req, res) => {
       // get all category and their count that how many application it has
