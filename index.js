@@ -275,7 +275,7 @@ async function run() {
         tutorId: details.tutorId,
       });
       if (exists)
-        return res.status(403).send("You have already booked this tutor!");
+        return res.status(409).send("You have already booked this tutor!");
       // fetching tutors collection tutorial data using the tutor id
       const prev = await tutorsCollection.findOne({
         _id: new ObjectId(details.tutorId),
